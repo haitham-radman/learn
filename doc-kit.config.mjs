@@ -45,6 +45,7 @@ export default {
     // Registers the components as islands, so they hydrate client-side
     components: {
       Authors: join(import.meta.dirname, 'components/Authors/index.jsx'),
+      HeroSearch: join(import.meta.dirname, 'components/HeroSearch/index.jsx'),
       Sidebar: join(import.meta.dirname, 'components/Sidebar/index.jsx'),
     },
 

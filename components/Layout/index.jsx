@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
 import NavBar from '../Navigation';
+import HeroSearch from '../HeroSearch';
 import MetaBar from '../Metabar';
 import SideBar from '../Sidebar';
 import Footer from '../Footer';
@@ -32,6 +33,7 @@ export default ({ metadata, headings, readingTime, children }) => (
         <div>
           <TableOfContents headings={headings} summaryTitle="On this page" />
           <br />
+          {metadata.path === '/index' && <HeroSearch />}
           <main>{children}</main>
         </div>
         <MetaBar

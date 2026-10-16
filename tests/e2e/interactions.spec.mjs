@@ -102,6 +102,22 @@ test.describe('Search', () => {
   });
 });
 
+test.describe('Homepage search', () => {
+  test('the search bar opens a single search modal', async ({ page }) => {
+    await page.goto('/learn');
+    await waitForIsland(page, 'HeroSearch');
+    await waitForIsland(page, 'SearchBox');
+
+    await page.getByRole('button', { name: /Search the guides/ }).click();
+
+    const results = page.getByRole('dialog').last();
+    await results.getByPlaceholder('Start typing...').fill('streams');
+    await expect(
+      results.getByRole('link', { name: /streams/i }).first()
+    ).toBeVisible();
+  });
+});
+
 test.describe('Small screens', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
