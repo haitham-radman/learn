@@ -1,0 +1,448 @@
+<title>استوديو المونتاج</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a desktop-editor window. Assistant panel on the inline-start (right in RTL), preview beside it, timeline spanning the bottom.
+   Committed to one dark look, matching the editor in the reference video. */
+:root{
+  --bg:#12100e; --win:#1a1714; --panel:#201c18; --raise:#2a251f; --line:#3b342c;
+  --fg:#f2ede5; --muted:#9d9488; --dim:#6f675d;
+  --accent:#f3d21c; --accent-ink:#1a1500;
+  --note-bg:#3a3318; --note-line:#7d6c20;
+  --cut:#ff6f5c; --keep:#5fd07a; --chip:#5946b8; --chip-hi:#7a68e0;
+  --font:"IBM Plex Sans Arabic","Segoe UI",Tahoma,Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:auto}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.55;
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+
+.window{max-width:1280px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+
+/* title bar */
+.titlebar{display:flex;align-items:center;gap:12px;padding:8px 14px;background:#15120f;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.lights{display:flex;gap:7px;direction:ltr}
+.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.menus{display:flex;gap:14px;color:var(--muted);font-size:12px;direction:ltr}
+.title{flex:1;min-width:0;text-align:center;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.title small{color:var(--muted);font-weight:400;margin-inline-start:6px}
+.save{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.save b{display:inline-flex;gap:2px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--keep);display:inline-block}
+.icon-btn{background:none;border:0;color:var(--muted);padding:4px 6px;border-radius:6px;font-size:15px}
+.icon-btn:hover{background:var(--raise);color:var(--fg)}
+
+/* top tabs */
+.tabs{display:flex;gap:4px;padding:8px 14px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{background:none;border:1px solid transparent;border-radius:10px;padding:5px 14px;color:var(--muted);display:flex;flex-direction:column;align-items:center;line-height:1.25;min-width:72px;flex:none}
+.tab span{font-size:13px;font-weight:600;color:var(--fg)}
+.tab small{font-size:10px;direction:ltr}
+.tab[aria-selected="true"]{border-color:var(--accent);background:rgba(243,210,28,.1)}
+.tab[aria-selected="true"] span{color:var(--accent)}
+.tab.assistant{margin-inline-start:auto;order:-1}
+
+/* body grid */
+.main{display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);min-height:640px}
+.panel{background:var(--panel);border-inline-end:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.stages{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px}
+.stage{border:1.5px solid var(--line);border-radius:12px;background:transparent;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:600}
+.stage .badge{width:18px;height:18px;border-radius:50%;background:var(--raise);color:var(--muted);font-size:10px;display:grid;place-items:center}
+.stage.done .badge{background:var(--keep);color:#06210e}
+.stage.on{border-color:#d8d2c7}
+.stage.on .badge{background:var(--accent);color:var(--accent-ink)}
+.stage:hover{border-color:var(--muted)}
+.panel-body{padding:4px 16px 14px;overflow-y:auto;max-height:540px;flex:1;min-height:0}
+.panel-foot{padding:10px 16px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+
+h2{font-size:17px;margin:6px 0 2px;font-weight:700}
+.meta{color:var(--muted);font-size:12px;margin:0 0 8px}
+.energy{display:flex;align-items:center;gap:1.5px;height:30px;margin:6px 0 12px;direction:ltr}
+.energy i{flex:1;min-width:1px;border-radius:1px;display:block}
+.note{background:var(--note-bg);border:1px solid var(--note-line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.note p{margin:0;color:#f0e6b8}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:rgba(255,255,255,.1);border-radius:8px;padding:2px 10px;font-size:12px}
+.chip.hi{background:rgba(243,210,28,.2);color:var(--accent)}
+
+.group{margin:12px 0;display:flex;flex-direction:column;gap:6px}
+.group.multi{border-inline-end:3px solid var(--accent);padding-inline-end:10px;border-radius:2px}
+.group-label{color:var(--accent);font-size:12px;font-weight:600}
+.take{display:flex;align-items:center;gap:10px;padding:6px 0}
+.take .time{font-size:12px;color:var(--muted);width:46px;text-align:left;flex:none}
+.take .txt{flex:1;min-width:0}
+.take.cut .txt{color:var(--cut);text-decoration:line-through;text-decoration-color:rgba(255,111,92,.6)}
+.take.keep .txt{color:var(--fg);font-weight:500}
+.tag{font-size:11px;padding:0 8px;border-radius:6px;background:rgba(255,111,92,.18);color:var(--cut);flex:none}
+.use{background:none;border:1px solid #cfc8bc;border-radius:999px;padding:2px 12px;font-size:12px;flex:none}
+.use:hover{background:var(--raise)}
+.take.keep .use{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+
+textarea,.field{width:100%;background:var(--raise);border:1px solid var(--line);border-radius:10px;color:var(--fg);padding:9px 12px;font:inherit;resize:none;min-height:44px}
+textarea::placeholder{color:var(--dim)}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.row{display:flex;gap:8px}
+.primary{flex:1;background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:10px;font-weight:700}
+.primary:hover{filter:brightness(1.06)}
+.ghost{background:transparent;border:1.5px solid #cfc8bc;border-radius:10px;padding:10px 14px;font-weight:600}
+.ghost:hover{background:var(--raise)}
+.pill{align-self:flex-start;background:var(--note-bg);border:1px solid var(--note-line);color:var(--accent);border-radius:999px;padding:3px 14px;font-size:12px;font-weight:600}
+
+/* caption stage */
+.sub{color:var(--muted);font-size:12px;display:flex;gap:6px;align-items:center;margin:6px 0}
+.script{display:flex;flex-direction:column;gap:12px;margin-top:10px;font-size:15px}
+.script p{margin:0}
+.w{border-radius:4px;padding:0 1px}
+.w[contenteditable="true"]{outline:none}
+.w.unsure{border-bottom:2px dotted var(--accent)}
+.w:focus{background:rgba(243,210,28,.2)}
+
+/* plan stage */
+.card{border-top:1px solid var(--line);padding:14px 0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px}
+.card .ctrl{display:flex;gap:6px;align-items:flex-start}
+.card .ctrl button{width:26px;height:26px;border-radius:50%;border:1.5px solid #cfc8bc;background:none;font-size:11px;padding:0}
+.card .ctrl button:hover{background:var(--raise)}
+.card h3{margin:0;font-size:14px;display:flex;gap:6px;align-items:baseline}
+.card h3 b{color:var(--muted);font-weight:500;font-size:12px}
+.thumb{width:78px;height:78px;border-radius:6px;background:linear-gradient(160deg,#4a4540,#17140f);display:grid;place-items:center;color:var(--muted);font-size:10px;margin-inline-start:auto}
+.field-l{font-size:11px;color:var(--dim);margin:6px 0 0}
+.card p{margin:0;font-size:13px}
+.card .stamp{justify-self:start;background:var(--raise);border-radius:999px;padding:0 10px;font-size:11px;color:var(--muted)}
+.card .src{font-size:11px;color:var(--dim);direction:ltr;text-align:right}
+.card.active{background:rgba(243,210,28,.05)}
+
+/* stub stages */
+.stub{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.item{background:var(--raise);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.item small{color:var(--muted)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;flex:1;max-width:120px}
+.bar i{display:block;height:100%;background:var(--keep)}
+
+/* stage preview */
+.stage-view{display:flex;flex-direction:column;min-width:0;background:#0d0b0a}
+.canvas{flex:1;display:grid;place-items:center;padding:18px;min-height:420px;background:radial-gradient(circle at 70% 20%,#241a14,#0d0b0a 70%)}
+.reel{position:relative;width:min(100%,290px);aspect-ratio:9/16;border-radius:10px;overflow:hidden;background:linear-gradient(180deg,#d9c3a5 0%,#b99b78 38%,#8a6e55 100%);box-shadow:0 12px 40px rgba(0,0,0,.55)}
+.reel .wall{position:absolute;inset:0 0 45% 0;background:linear-gradient(120deg,#c4a98b,#8b6f57)}
+.reel .tri{position:absolute;top:18%;right:8%;width:54px;height:48px;border:2px solid #3b2b20;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.reel .chair{position:absolute;bottom:0;left:12%;right:12%;height:48%;background:#2e3a3d;border-radius:40px 40px 0 0}
+.reel .head{position:absolute;left:50%;top:30%;width:96px;height:118px;margin-left:-48px;border-radius:46% 46% 50% 50%;background:#b98c70;border-top:26px solid #6d6a66;box-shadow:inset 0 -26px 0 -8px #2a2420}
+.reel .shirt{position:absolute;left:20%;right:20%;bottom:0;height:34%;background:#efe9e0;border-radius:26px 26px 0 0}
+.cap{position:absolute;left:12%;right:12%;bottom:24%;background:rgba(40,40,40,.82);border-radius:6px;padding:8px 10px;text-align:center;font-weight:700;font-size:15px;line-height:1.35;min-height:38px}
+.cap em{font-style:normal;color:#ff9f2e}
+.transport{display:flex;align-items:center;justify-content:center;gap:14px;padding:8px 14px;background:#15120f;border-top:1px solid var(--line);direction:ltr}
+.transport .tc{font-size:13px;font-weight:600}
+.transport .tc span{color:var(--muted)}
+.play{width:30px;height:30px;border-radius:50%;background:var(--fg);color:#111;border:0;font-size:12px}
+.tbtn{background:none;border:0;color:var(--muted);font-size:14px}
+
+/* timeline */
+.timeline{border-top:1px solid var(--line);background:#14110e}
+.tl-tools{display:flex;gap:8px;align-items:center;padding:8px 14px;flex-wrap:wrap}
+.tl-tools .t{background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:2px 12px;font-size:12px}
+.tl-tools .t.on{border-color:var(--accent);color:var(--accent)}
+.tl-tools .sim{margin-inline-start:auto;background:#e9e3d8;color:#17130f;border:0;border-radius:999px;padding:3px 14px;font-size:12px;font-weight:600}
+.tl-tools .sim.on{background:var(--accent);color:var(--accent-ink)}
+.tl-wrap{display:grid;grid-template-columns:96px minmax(0,1fr)}
+.labels{display:flex;flex-direction:column;border-inline-end:1px solid var(--line);font-size:11px;color:var(--muted)}
+.labels div{display:flex;flex-direction:column;justify-content:center;padding:0 10px}
+.labels div b{color:var(--fg);font-size:12px}
+.scroll{overflow-x:auto;direction:ltr;position:relative}
+.track-area{position:relative;width:1300px;cursor:pointer}
+.ruler{height:22px;position:relative;border-bottom:1px solid var(--line)}
+.ruler span{position:absolute;top:2px;font-size:10px;color:var(--muted);padding-left:3px;border-left:1px solid var(--line);height:18px}
+.lane{height:44px;position:relative;border-bottom:1px solid #231e19}
+.lane.video{height:50px;display:flex}
+.lane.video i{display:block;height:100%;flex:none;background:linear-gradient(180deg,#8b7a68,#4a4036);border-right:1px solid #14110e}
+.lane.audio{height:34px;display:flex;align-items:center;gap:1px;padding:0 1px}
+.lane.audio i{display:block;width:3px;flex:none;border-radius:1px;background:var(--keep)}
+.wc{position:absolute;top:8px;height:28px;background:var(--chip);border-radius:5px;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 6px;white-space:nowrap;direction:rtl;overflow:hidden;border:0;color:#fff}
+.wc.on{background:var(--chip-hi);box-shadow:0 0 0 1.5px #fff inset}
+.cutmark{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,rgba(255,111,92,.35) 0 4px,transparent 4px 8px);pointer-events:none}
+.head-line{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none;z-index:3}
+.head-line::before{content:"";position:absolute;top:0;left:-5px;border:6px solid transparent;border-top-color:#fff}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:#17130f;padding:8px 16px;border-radius:999px;font-weight:600;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.toast.show{opacity:1}
+
+@media (max-width:860px){
+  .main{grid-template-columns:minmax(0,1fr)}
+  .panel{border-inline-end:0;border-bottom:1px solid var(--line)}
+  .panel-body{max-height:480px}
+  .menus{display:none}
+  .tl-wrap{grid-template-columns:70px minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+
+<div class="window" id="app">
+  <div class="titlebar">
+    <div class="lights" aria-hidden="true"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="menus" aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>History</span><span>Window</span></div>
+    <div class="title"><span class="num">DJI_20261013173652_0220_D</span> - استوديو المونتاج<small>by Bassam</small></div>
+    <div class="save"><button class="icon-btn" id="undo" aria-label="تراجع">↶</button><button class="icon-btn" id="redo" aria-label="إعادة">↷</button><span><span class="dot"></span> محفوظ</span></div>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="أقسام الاستوديو">
+    <button class="tab assistant" role="tab" aria-selected="true" data-tab="assistant"><span>المساعد</span><small>Assistant</small></button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="library"><span>المكتبة</span><small>Library</small></button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="text"><span>النص</span><small>Transcript</small></button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="files"><span>الملفات</span><small>Files</small></button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="plan"><span>الخطة</span><small>Plan</small></button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="inspire"><span>الإلهام</span><small>Inspiration</small></button>
+  </nav>
+
+  <div class="main">
+    <section class="panel" aria-label="المساعد">
+      <div class="stages" id="stages"></div>
+      <div class="panel-body" id="body"></div>
+      <div class="panel-foot" id="foot"></div>
+    </section>
+
+    <section class="stage-view" aria-label="المعاينة">
+      <div class="canvas">
+        <div class="reel" role="img" aria-label="معاينة الفيديو">
+          <div class="wall"></div><div class="tri"></div><div class="chair"></div><div class="head"></div><div class="shirt"></div>
+          <div class="cap" id="cap"></div>
+        </div>
+      </div>
+      <div class="transport">
+        <button class="tbtn" id="prev" aria-label="السابق">⏮</button>
+        <button class="play" id="play" aria-label="تشغيل">▶</button>
+        <button class="tbtn" id="next" aria-label="التالي">⏭</button>
+        <div class="tc num" id="tc">00:00:00 <span>/ 01:44:00</span></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="timeline">
+    <div class="tl-tools">
+      <button class="t on" id="tool-select">تحديد</button>
+      <button class="t" id="tool-split">تقسيم</button>
+      <button class="sim" id="sim">محاكاة بالمحرر</button>
+    </div>
+    <div class="tl-wrap">
+      <div class="labels" id="labels">
+        <div style="height:22px"></div>
+        <div style="height:44px"><b>الكابشن</b>Captions</div>
+        <div style="height:50px"><b>الفيديو</b>Video</div>
+        <div style="height:34px"><b>الموسيقى</b>Audio</div>
+      </div>
+      <div class="scroll" id="scroll">
+        <div class="track-area" id="track">
+          <div class="ruler" id="ruler"></div>
+          <div class="lane" id="caps"></div>
+          <div class="lane video" id="vid"></div>
+          <div class="lane audio" id="wave"></div>
+          <div class="head-line" id="head"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  var TOTAL = 104, PX = 12; // seconds, pixels per second
+  var $ = function(id){return document.getElementById(id)};
+  var toastT;
+  function toast(m){var t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show')},1800)}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function rnd(seed){var s=seed;return function(){s=(s*9301+49297)%233280;return s/233280}}
+
+  /* ---------- captions (shared by preview and timeline) ---------- */
+  var CAPS = [
+    {t:0,   words:['كل','يوم','يطلع','لك'], hi:3},
+    {t:5,   words:['طيب'], hi:0},
+    {t:8,   words:['هذي','الفئة'], hi:1},
+    {t:12,  words:['وهذا','الي'], hi:0},
+    {t:17,  words:['في','هذا'], hi:1},
+    {t:22,  words:['ناجح','يقولك','استمر','ونزل'], hi:3},
+    {t:27,  words:['وروح','تنجح'], hi:1},
+    {t:33,  words:['نفس','الي','كنا'], hi:0},
+    {t:40,  words:['ولاحظر','من','كنا'], hi:0},
+    {t:47,  words:['بس','لو','نزلت'], hi:2},
+    {t:55,  words:['وشلون'], hi:0},
+    {t:62,  words:['عام'], hi:0},
+    {t:70,  words:['في','المقبرة'], hi:1},
+    {t:78,  words:['الفئة','ما','رح','تشوفها'], hi:3},
+    {t:88,  words:['لازم','تزور','مقبرة','الفشل'], hi:3}
+  ];
+  CAPS.forEach(function(c,i){c.end=(CAPS[i+1]?CAPS[i+1].t:TOTAL)-0.6});
+
+  /* ---------- timeline build ---------- */
+  var ruler=$('ruler'),capsLane=$('caps'),vid=$('vid'),wave=$('wave'),track=$('track'),head=$('head');
+  track.style.width=(TOTAL*PX+20)+'px';
+  for(var s=0;s<=TOTAL;s+=5){var m=document.createElement('span');m.className='num';m.style.left=(s*PX)+'px';m.textContent=Math.floor(s/60)+':'+('0'+(s%60)).slice(-2);ruler.appendChild(m)}
+  var chipEls=CAPS.map(function(c,i){
+    var b=document.createElement('button');b.className='wc';b.style.left=(c.t*PX)+'px';b.style.width=Math.max(34,(c.end-c.t)*PX-4)+'px';
+    b.textContent=c.words.join(' ');b.setAttribute('aria-label','كابشن: '+c.words.join(' '));
+    b.addEventListener('click',function(e){e.stopPropagation();seek(c.t)});capsLane.appendChild(b);return b});
+  [[19,22],[41,44],[56,60],[83,86]].forEach(function(r){var d=document.createElement('div');d.className='cutmark';d.style.left=(r[0]*PX)+'px';d.style.width=((r[1]-r[0])*PX)+'px';capsLane.appendChild(d)});
+  var tones=['#8b7a68','#7a6a5a','#9a8672','#6c5f52'];
+  for(var k=0;k<Math.ceil(TOTAL*PX/50);k++){var f=document.createElement('i');f.style.width='50px';f.style.background='linear-gradient(180deg,'+tones[k%4]+',#4a4036)';vid.appendChild(f)}
+  var rw=rnd(7);for(var j=0;j<TOTAL*PX/4;j++){var w=document.createElement('i');w.style.height=(6+rw()*26)+'px';wave.appendChild(w)}
+
+  /* ---------- playback ---------- */
+  var time=0,timer=null,playing=false;
+  function fmt(t){var m=Math.floor(t/60),s=Math.floor(t%60),f=Math.floor((t%1)*30);return ('0'+m).slice(-2)+':'+('0'+s).slice(-2)+':'+('0'+f).slice(-2)}
+  function render(){
+    head.style.left=(time*PX)+'px';
+    $('tc').innerHTML=fmt(time)+' <span>/ 01:44:00</span>';
+    var cur=-1;CAPS.forEach(function(c,i){if(time>=c.t&&time<c.end)cur=i});
+    chipEls.forEach(function(el,i){el.classList.toggle('on',i===cur)});
+    var cap=$('cap');
+    if(cur<0){cap.style.visibility='hidden'}else{
+      cap.style.visibility='visible';var c=CAPS[cur];
+      cap.innerHTML=c.words.map(function(w,i){return i===c.hi?'<em>'+esc(w)+'</em>':esc(w)}).join(' ');
+    }
+  }
+  function seek(t){time=Math.max(0,Math.min(TOTAL,t));render();var sc=$('scroll'),x=time*PX;if(x<sc.scrollLeft||x>sc.scrollLeft+sc.clientWidth-40)sc.scrollLeft=Math.max(0,x-80)}
+  function setPlay(on){playing=on;$('play').textContent=on?'⏸':'▶';$('play').setAttribute('aria-label',on?'إيقاف':'تشغيل');clearInterval(timer);
+    if(on){timer=setInterval(function(){if(time>=TOTAL){setPlay(false);return}seek(time+0.1)},100)}}
+  $('play').addEventListener('click',function(){setPlay(!playing)});
+  function stepCap(d){var cur=0;CAPS.forEach(function(c,i){if(time>=c.t)cur=i});seek(CAPS[Math.max(0,Math.min(CAPS.length-1,cur+d))].t)}
+  $('prev').addEventListener('click',function(){stepCap(-1)});
+  $('next').addEventListener('click',function(){stepCap(1)});
+  track.addEventListener('click',function(e){var r=track.getBoundingClientRect();seek((e.clientX-r.left)/PX)});
+  $('tool-select').addEventListener('click',function(){$('tool-select').classList.add('on');$('tool-split').classList.remove('on')});
+  $('tool-split').addEventListener('click',function(){$('tool-split').classList.add('on');$('tool-select').classList.remove('on');toast('انقر على الخط الزمني لتقسيم المقطع عند المؤشر')});
+  $('sim').addEventListener('click',function(){var b=$('sim');b.classList.toggle('on');toast(b.classList.contains('on')?'المحاكاة مفعّلة: يظهر القص كما سيُصدَّر':'المحاكاة متوقفة')});
+  ['undo','redo'].forEach(function(id){$(id).addEventListener('click',function(){toast(id==='undo'?'تم التراجع':'تمت الإعادة')})});
+  seek(23);
+
+  /* ---------- assistant stages ---------- */
+  var STAGES=[
+    {id:'sent',name:'الجمل'},{id:'silence',name:'الصمت'},{id:'caption',name:'الكابشن'},
+    {id:'plan',name:'الخطة'},{id:'build',name:'البناء'},{id:'notes',name:'الملاحظات'}];
+  var cur='caption';
+  var doneUpTo=2; // index of last completed stage
+
+  // sentence groups: each take has a duration in seconds that would be removed when not chosen
+  var GROUPS=[
+    {takes:[{t:'0:14.7',x:'ترجمة ناسي',tag:'بلا كلام',d:4},{t:'0:19.3',x:'كل يوم',tag:'بداية متعثرة',d:1.5}],keep:-1},
+    {label:'لقطتان للجملة نفسها',takes:[{t:'0:20.8',x:'يطلع لك فيديو المحتوى',tag:'إعادة',d:2.6},{t:'0:23.4',x:'كل يوم يطلع لك فيديو لصانع محتوى ناجح',d:3.1}],keep:1},
+    {takes:[{t:'0:26.0',x:'يقولك استمر ونزل وروح تنجح',d:6},{t:'0:36.6',x:'طيب وين الناس اللي نزلت كل يوم واستمرت وما نجحت؟',d:9}],keep:-2},
+    {takes:[{t:'0:47.2',x:'وحمر',tag:'تصحيح',d:1.2},{t:'0:50.0',x:'هذي',tag:'بداية متعثرة',d:.8}],keep:-1},
+    {label:'3 لقطات للجملة نفسها',takes:[{t:'0:52.5',x:'هذي الفئة ما رح تشوفها لأنها في المقبرة',tag:'إعادة',d:3.4},{t:'1:16.1',x:'الفئة ما رح تشوفها لأنها في المقبرة وما رح تحب تزورها',tag:'إعادة',d:4.1},{t:'1:22.7',x:'هذي الفئة ما رح تشوفها لأنها في المقبرة وما',d:3.8}],keep:2},
+    {takes:[{t:'1:04.6',x:'هذي الفئة',tag:'بداية متعثرة',d:1.4},{t:'1:06.6',x:'هذي',tag:'بلا كلام',d:.7},{t:'1:12.5',x:'هذي الفئة',tag:'تصحيح',d:1.1}],keep:-1}
+  ];
+  var BASE_CUT=173.4, baseSum=0;
+  // keep:-1 = every take is cut, keep:-2 = every take kept
+  function takeState(g,i){return g.keep===-2?'keep':(g.keep===i?'keep':'cut')}
+  function cutTotal(){var s=0;GROUPS.forEach(function(g){g.takes.forEach(function(t,i){if(takeState(g,i)==='cut')s+=t.d})});return s}
+  baseSum=cutTotal();
+
+  var UNSURE=['ما','رح','تشوفها','نجح'];
+  var SCRIPT=[
+    ['كل يوم يطلع لك فيديو لصانع محتوى ناجح','يقولك استمر ونزل وروح تنجح'],
+    ['طيب وين الناس اللي نزلت كل يوم','واستمرت وما نجحت؟'],
+    ['هذي الفئة ما رح تشوفها لأنها في المقبرة','وما رح تحب تزورها'],
+    ['وهذا الي اسمه الانحياز للسفينة الناجية','وهو خطير جدا'],
+    ['في هذا الانحياز نشوف اللي نجح بس وبنى','عليهم توقعاتنا'],
+    ['والفاشلين مختفين عن الصورة تماما']
+  ];
+
+  var PLAN=[
+    {n:10,title:'الدرع حيث الرصاص',say:'لقطة مدرعة صغيرة منطقة آثار رصاص ونحط عليها الدرع صح؟',show:'قطعة درع فولاذية ورقية مبرشمة تنزل على الفيديو وتلصق على المكان المحتمي.',move:'تنزلق من الجانب وتستقر بحركة ناعمة عند كلمة «الدرع»، تهتز اهتزازًا خفيفًا عند «صح؟» وتبقى معلقة. تتحرك للخارج مع بداية اسم عالم الرياضيات وتفتح بطاقته.',time:'01:06:21'},
+    {n:11,title:'إبراهام والد',say:'في عالم رياضيات اسمه إبراهام والد يشتغل مع الجيش، فكر بتفكير ثاني',show:'صورة حقيقية لعالم الرياضيات إبراهام والد (Abraham Wald) تظهر كاملة بلا قص، داخل إطار ورقي رفيع بعيدًا عن الحواف.',move:'تدخل ببطء ناعم من الوسط وتبقى لثبتة في الصورة، وتتحرك حركة طفيفة. عند «فكّر تفكير ثاني» يتباطأ الإطار وتنزلق الصورة جانبًا لتترك المكان لبطاقة التوضيح.',src:'Konrad Jacobs, Erlangen (MFO) — CC BY-SA 2.0 de',time:'01:12:04',thumb:true},
+    {n:13,title:'علامة X',say:'ما تشوف الناجحين بس لبني توقعات عليهم، زور مقبرة الفشل',show:'علامة X حمراء مرسومة بفرشاة فوق الفيديو وكأنها تشطب فكرة الاكتفاء بالناجحين.',move:'ترسم الضربة الأولى عند «الناجحين بس» لمدة 0.8 ثانية، وتبقى ثابتة، عند «زوره» تتلاشى بنعومة وتفسح الطريق لبطاقة البوابة.',time:'01:32:04'},
+    {n:14,title:'زر المقبرة',say:'زور المقبرة وشوف كم واحد سواها وليش ما نجح',show:'بوابة مقبرة ورقية تنفتح، وطريق مضيء يمتد منها إلى الحقل المظلم، عشان يبين الشواهد بالرياضيات والأرقام العربية.',move:'تنفتح البوابة من الوسط إلى الجانبين خلال 0.8 ثانية، ويمضي الضوء على الطريق بين الشواهد ويحتها واحدا بعد الآخر، كلام واحد سواها، عند «ليش ما نجح؟» يتوقف الضوء على شاهد واحد يخبو.',time:'01:37:22',thumb:true}
+  ];
+  var openPlan=11;
+
+  function stagesHtml(){
+    return STAGES.map(function(s,i){
+      var st=i<=doneUpTo&&s.id!==cur?'done':'';var on=s.id===cur?'on':'';
+      var badge=(i<=doneUpTo&&s.id!==cur)?'✓':(s.id===cur?'●':String(i+1));
+      return '<button class="stage '+st+' '+on+'" data-stage="'+s.id+'"><span class="badge">'+badge+'</span>'+s.name+'</button>'}).join('')}
+
+  function energyHtml(){
+    var r=rnd(21),h='';for(var i=0;i<84;i++){var v=r();var c=v<.3?'var(--cut)':(v<.82?'var(--keep)':'var(--accent)');var hh=10+Math.round(r()*20);h+='<i style="height:'+hh+'px;background:'+c+';opacity:.85"></i>'}
+    return '<div class="energy" aria-hidden="true">'+h+'</div>'}
+
+  function viewSentences(){
+    var cutS=cutTotal().toFixed(1);
+    var body='<h2>اختر الجمل</h2><p class="meta num">الخام 13:30 · بعد القص 1:51</p>'+energyHtml()+
+      '<div class="note"><p>حذفت المحاولات المكررة وأبقيت آخر محاولة كاملة لكل جملة، وحذفت البدايات المتروكة والسكتات وما أضافه التفريغ من عبارات لا علاقة لها بكلامك.</p><div class="chips"><span class="chip hi num" id="cutchip">يحذف '+(BASE_CUT-baseSum+ +cutS).toFixed(1)+' ث</span><span class="chip">خلف المكرر: '+GROUPS.filter(function(g){return g.takes.length>1}).length+'</span></div></div>';
+    GROUPS.forEach(function(g,gi){
+      body+='<div class="group'+(g.label?' multi':'')+'">'+(g.label?'<div class="group-label">'+g.label+'</div>':'');
+      g.takes.forEach(function(t,i){
+        var st=takeState(g,i);
+        body+='<div class="take '+st+'"><button class="use" data-g="'+gi+'" data-i="'+i+'">'+(st==='keep'?'مستخدمة':'استخدم هذه')+'</button><span class="txt">'+esc(t.x)+'</span>'+(t.tag?'<span class="tag">'+t.tag+'</span>':'')+'<span class="time num">'+t.t+'</span></div>'});
+      body+='</div>'});
+    return{body:body,foot:'<p class="hint">يُعاد القص من التسجيل الأصلي، وتبقى الكلمات التي صححتها في الكابشن. تعديلاتك اليدوية على المقاطع بعد القص تُعاد.</p><textarea id="ask" rows="1" placeholder="اكتب للمساعد ما تريد تغييره في الاختيار..."></textarea><div class="row"><button class="ghost" id="listen">استمع للنتيجة</button><button class="primary" id="apply">اقطع حسب اختياري</button></div>'}}
+
+  function viewSilence(){
+    var items=[['0:09.4','سكتة بين جملتين','0.9 ث',1],['0:31.0','تردد قبل الجملة','0.6 ث',1],['0:58.2','سكتة طويلة','1.4 ث',1],['1:19.5','نفَس قبل الإجابة','0.5 ث',0],['1:41.1','سكتة بعد الخاتمة','0.7 ث',1]];
+    var b='<h2>الصمت</h2><p class="meta">تقصّ السكتات الأطول من 0.5 ثانية، وتُبقي ما يخدم الإيقاع.</p><div class="stub">';
+    items.forEach(function(x,i){b+='<div class="item"><div><b>'+x[1]+'</b><br><small class="num">'+x[0]+' · '+x[2]+'</small></div><button class="use" data-sil="'+i+'">'+(x[3]?'مقصوصة':'مُبقاة')+'</button></div>'});
+    return{body:b+'</div>',foot:'<button class="primary" id="goCaption">متابعة إلى الكابشن</button>'}}
+
+  function viewCaption(){
+    var b='<h2>تحقق من الكلام</h2><p class="hint" style="margin-top:6px">اكتب على أي كلمة للتصحيح، واحذف كلمات غلطها في الفيديو.</p><div class="sub"><button class="pill" id="regen">رجّع الكابشن مع المساعد</button></div><p class="meta">كلمات لم يتأكد منها التفريغ: <span class="num">25</span> · وجدتها وحدّدتها بخط منقط</p><div class="script" id="script">';
+    SCRIPT.forEach(function(par,pi){b+='<p>'+par.map(function(line){
+      return line.split(' ').map(function(w){var u=UNSURE.indexOf(w)>-1;return '<span class="w'+(u?' unsure':'')+'" contenteditable="true" spellcheck="false">'+esc(w)+'</span>'}).join(' ')}).join('<br>')+'</p>'});
+    b+='</div><p class="meta" style="margin-top:14px">ما فيه وقفات أطول من <span class="num">0.5</span> ث</p>';
+    return{body:b,foot:'<div class="row"><button class="ghost" id="more">المزيد</button><button class="primary" id="goPlan">اعتمد الكابشن وأنشئ الخطة</button></div>'}}
+
+  function viewPlan(){
+    var b='<h2>الخطة</h2><p class="meta">لقطات توضيحية تُركَّب فوق الفيديو، مرتبة على الكلام. اضغط على لقطة لرؤية التفاصيل.</p>';
+    PLAN.forEach(function(p){
+      var on=p.n===openPlan;
+      b+='<div class="card'+(on?' active':'')+'"><div class="ctrl"><button data-pl="up" data-n="'+p.n+'" aria-label="تقديم">⌃</button><button data-pl="seek" data-n="'+p.n+'" aria-label="انتقل للقطة">▶</button></div>'+
+        '<div><h3>'+esc(p.title)+' <b class="num">'+p.n+'</b></h3>'+
+        (p.thumb?'<div class="thumb" aria-hidden="true">'+(p.n===11?'صورة أرشيفية':'رسم')+'</div>':'')+
+        (on?'<div class="field-l">الكلام</div><p>'+esc(p.say)+'</p><div class="field-l">ما يظهر</div><p>'+esc(p.show)+'</p><div class="field-l">الحركة</div><p>'+esc(p.move)+'</p>'+(p.src?'<div class="field-l">المصدر</div><p class="src">'+esc(p.src)+'</p>':''):'<p class="meta" style="margin:4px 0 0">'+esc(p.say)+'</p>')+
+        '<span class="stamp num" style="margin-top:8px;display:inline-block">'+p.time+'</span></div></div>'});
+    return{body:b,foot:'<textarea id="ask" rows="2" placeholder="اشرح للمساعد ما تريد تغييره في الخطة..."></textarea><div class="row"><button class="ghost" id="replan">أعد الخطة تلقائيًا</button><button class="primary" id="goBuild">ابنِ اللقطات</button></div>'}}
+
+  function viewBuild(){
+    var rows=[['الدرع حيث الرصاص',100],['إبراهام والد',100],['علامة X',72],['زر المقبرة',35]];
+    var b='<h2>البناء</h2><p class="meta">تُرسم كل لقطة وتُركَّب على الخط الزمني.</p><div class="stub">';
+    rows.forEach(function(r){b+='<div class="item"><span>'+r[0]+'</span><div class="bar"><i style="width:'+r[1]+'%"></i></div><small class="num">'+r[1]+'%</small></div>'});
+    return{body:b+'</div>',foot:'<button class="primary" id="goNotes">متابعة إلى الملاحظات</button>'}}
+
+  function viewNotes(){
+    var n=['الإيقاع سريع في أول 20 ثانية، وهذا مناسب للمنصة.','الكابشن يغطي 100٪ من الكلام المسموع.','لا توجد وقفات أطول من 0.5 ث بعد القص.','لقطة «علامة X» تتداخل ثانية واحدة مع «زر المقبرة».'];
+    var b='<h2>الملاحظات</h2><p class="meta">ملخص قبل التصدير.</p><div class="stub">';
+    n.forEach(function(x){b+='<div class="item"><span>'+x+'</span></div>'});
+    return{body:b+'</div>',foot:'<button class="primary" id="export">تصدير الفيديو</button>'}}
+
+  var VIEWS={sent:viewSentences,silence:viewSilence,caption:viewCaption,plan:viewPlan,build:viewBuild,notes:viewNotes};
+  var order=STAGES.map(function(s){return s.id});
+  function go(id){cur=id;var i=order.indexOf(id);if(i-1>doneUpTo)doneUpTo=i-1;draw()}
+  function draw(){
+    var v=VIEWS[cur]();
+    $('stages').innerHTML=stagesHtml();$('body').innerHTML=v.body;$('foot').innerHTML=v.foot;
+    var tabsel=cur==='plan'?'plan':'assistant';
+    document.querySelectorAll('.tab').forEach(function(t){t.setAttribute('aria-selected',t.dataset.tab===tabsel?'true':'false')});
+  }
+
+  document.addEventListener('click',function(e){
+    var t=e.target.closest('button');if(!t)return;
+    if(t.dataset.stage){go(t.dataset.stage);return}
+    if(t.classList.contains('use')&&t.dataset.g!==undefined){var g=GROUPS[+t.dataset.g];g.keep=+t.dataset.i;var sc=$('body').scrollTop;draw();$('body').scrollTop=sc;return}
+    if(t.dataset.sil!==undefined){var on=t.textContent==='مقصوصة';t.textContent=on?'مُبقاة':'مقصوصة';return}
+    if(t.dataset.pl==='seek'){openPlan=+t.dataset.n;var map={10:66,11:72,13:92,14:97};seek(map[openPlan]||time);draw();return}
+    if(t.dataset.pl==='up'){openPlan=+t.dataset.n;draw();return}
+    if(t.dataset.tab){var tb=t.dataset.tab;if(tb==='plan'){go('plan')}else if(tb==='assistant'){draw();document.querySelectorAll('.tab').forEach(function(x){x.setAttribute('aria-selected',x.dataset.tab==='assistant'?'true':'false')})}else{toast('هذا القسم خارج نطاق النموذج التجريبي');}return}
+    switch(t.id){
+      case 'listen':seek(23);setPlay(true);toast('تشغيل النتيجة بعد القص');break;
+      case 'apply':toast('تم القص بحسب اختيارك');doneUpTo=Math.max(doneUpTo,0);go('silence');break;
+      case 'goCaption':go('caption');break;
+      case 'regen':toast('يراجع المساعد الكابشن من جديد');break;
+      case 'more':toast('تظهر كلمات أخرى لم يتأكد منها التفريغ');break;
+      case 'goPlan':go('plan');break;
+      case 'replan':toast('أُعيدت الخطة تلقائيًا');break;
+      case 'goBuild':go('build');break;
+      case 'goNotes':go('notes');break;
+      case 'export':toast('بدأ التصدير');break;
+    }
+  });
+  draw();
+})();
+</script>
