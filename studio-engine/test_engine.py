@@ -40,7 +40,7 @@ class SilenceTests(unittest.TestCase):
         self.assertEqual(engine.silences_from_levels(lv, -30, min_len=0.5), [(0.95, 1.55)])
 
     def test_speech_runs_split_long_run_at_quietest_point(self):
-        lv = [-20] * 800 + [-39] * 20 + [-20] * 200   # 50 s of speech with one dip near 40 s
+        lv = [-39] * 100 + [-20] * 800 + [-39] * 20 + [-20] * 200 + [-39] * 40   # noise floor, 40 s of speech, 1 s dip, 10 s of speech
         runs = engine.speech_runs(lv, max_len=28.0)
         self.assertTrue(all(b - a <= 28.0 + 1e-6 for a, b in runs))
         self.assertGreater(len(runs), 1)
