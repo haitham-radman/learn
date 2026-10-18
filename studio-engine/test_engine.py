@@ -39,6 +39,12 @@ class SilenceTests(unittest.TestCase):
         lv = [-20] * 10 + [-40] * 4 + [-20] * 5 + [-40] * 12   # 0.2 s gap, then 0.6 s tail
         self.assertEqual(engine.silences_from_levels(lv, -30, min_len=0.5), [(0.95, 1.55)])
 
+    def test_speech_runs_split_long_run_at_quietest_point(self):
+        lv = [-20] * 800 + [-39] * 20 + [-20] * 200   # 50 s of speech with one dip near 40 s
+        runs = engine.speech_runs(lv, max_len=28.0)
+        self.assertTrue(all(b - a <= 28.0 + 1e-6 for a, b in runs))
+        self.assertGreater(len(runs), 1)
+
     def test_auto_threshold_sits_above_noise_floor(self):
         lv = [-39] * 30 + [-25] * 70
         th = engine.auto_threshold(lv)

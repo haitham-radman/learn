@@ -146,6 +146,47 @@ def transcribe(video, model_name="small", lang="ar"):
     return {"language": info.language, "duration": info.duration, "segments": out}
 
 
+def speech_runs(levels, win=0.05, min_gap=0.4, max_len=28.0, min_len=0.3):
+    """Speech stretches between pauses, each at most `max_len` seconds (Whisper's window), as [(start, end)]."""
+    th = auto_threshold(levels)
+    total = len(levels) * win
+    runs = invert(silences_from_levels(levels, th, min_gap, win), total, pad=0.1, min_keep=min_len)
+    out = []
+    for a, b in runs:
+        while b - a > max_len:  # cut an overlong run at its quietest window in the last 5 s of the window
+            lo, hi = int((a + max_len - 5) / win), int((a + max_len) / win)
+            cut = min(range(lo, hi), key=lambda i: levels[i]) * win
+            out.append((a, cut))
+            a = cut
+        out.append((a, b))
+    return out
+
+
+def transcribe_sherpa(video, model_dir, lang="ar"):
+    """Whisper through sherpa-onnx (model files from the k2-fsa release), one segment per speech run. No word timestamps."""
+    import array, glob, os
+    import numpy as np
+    import sherpa_onnx
+    name = os.path.basename(os.path.normpath(model_dir)).replace("sherpa-onnx-whisper-", "")
+    pick = lambda kind: (glob.glob(f"{model_dir}/{name}-{kind}.int8.onnx") or glob.glob(f"{model_dir}/{name}-{kind}.onnx"))[0]
+    rec = sherpa_onnx.OfflineRecognizer.from_whisper(
+        encoder=pick("encoder"), decoder=pick("decoder"), tokens=f"{model_dir}/{name}-tokens.txt",
+        language=lang, task="transcribe", num_threads=4)
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", video, "-vn", "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
+                         capture_output=True).stdout
+    pcm = array.array("h"); pcm.frombytes(raw[: len(raw) // 2 * 2])
+    audio = np.asarray(pcm, dtype=np.float32) / 32768.0
+    segments = []
+    for a, b in speech_runs(loudness(video)):
+        stream = rec.create_stream()
+        stream.accept_waveform(16000, audio[int(a * 16000): int(b * 16000)])
+        rec.decode_stream(stream)
+        text = stream.result.text.strip()
+        if text:
+            segments.append({"start": round(a, 2), "end": round(b, 2), "text": text, "words": []})
+    return {"language": lang, "duration": round(len(audio) / 16000, 2), "segments": segments}
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -158,6 +199,7 @@ def main(argv=None):
         s.add_argument("--min", type=float, default=0.5)
     s = sub.add_parser("transcribe")
     s.add_argument("video"); s.add_argument("json"); s.add_argument("--model", default="small"); s.add_argument("--lang", default="ar")
+    s.add_argument("--sherpa-dir", help="use sherpa-onnx with this extracted sherpa-onnx-whisper-* folder (no Hugging Face needed)")
     s = sub.add_parser("plan"); s.add_argument("json"); s.add_argument("plan")
     s = sub.add_parser("cut"); s.add_argument("video"); s.add_argument("plan"); s.add_argument("out")
     a = p.parse_args(argv)
@@ -171,7 +213,8 @@ def main(argv=None):
         render(a.video, keep, a.out)
         print(json.dumps({"before": round(total, 2), "after": round(duration(a.out), 2), "segments": len(keep)}))
     elif a.cmd == "transcribe":
-        json.dump(transcribe(a.video, a.model, a.lang), open(a.json, "w"), ensure_ascii=False, indent=1)
+        result = transcribe_sherpa(a.video, a.sherpa_dir, a.lang) if a.sherpa_dir else transcribe(a.video, a.model, a.lang)
+        json.dump(result, open(a.json, "w"), ensure_ascii=False, indent=1)
     elif a.cmd == "plan":
         data = json.load(open(a.json))
         keep, dropped = plan_keep(data["segments"])
