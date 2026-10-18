@@ -35,6 +35,15 @@ class PlanTests(unittest.TestCase):
 
 
 class SilenceTests(unittest.TestCase):
+    def test_levels_to_silences_respects_min_length(self):
+        lv = [-20] * 10 + [-40] * 4 + [-20] * 5 + [-40] * 12   # 0.2 s gap, then 0.6 s tail
+        self.assertEqual(engine.silences_from_levels(lv, -30, min_len=0.5), [(0.95, 1.55)])
+
+    def test_auto_threshold_sits_above_noise_floor(self):
+        lv = [-39] * 30 + [-25] * 70
+        th = engine.auto_threshold(lv)
+        self.assertTrue(-39 < th < -25)
+
     def test_invert_leaves_padding_and_covers_tail(self):
         keep = engine.invert([(2.0, 3.0), (5.0, 6.0)], total=8.0, pad=0.1)
         self.assertEqual(keep, [(0.0, 2.1), (2.9, 5.1), (5.9, 8.0)])

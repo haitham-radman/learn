@@ -21,22 +21,43 @@ def duration(video):
     return float(r.stdout.strip())
 
 
-def detect_silence(video, noise_db=-30.0, min_len=0.5):
-    """Return [(start, end)] of silent stretches using ffmpeg silencedetect."""
-    r = run(["ffmpeg", "-hide_banner", "-nostats", "-i", video, "-af",
-             f"silencedetect=noise={noise_db}dB:d={min_len}", "-f", "null", "-"])
-    out, start = [], None
-    for line in r.stderr.splitlines():
-        m = re.search(r"silence_start: (-?[\d.]+)", line)
-        if m:
-            start = max(0.0, float(m.group(1)))
-        m = re.search(r"silence_end: ([\d.]+)", line)
-        if m and start is not None:
-            out.append((start, float(m.group(1))))
-            start = None
-    if start is not None:  # silence runs to the end of the file
-        out.append((start, duration(video)))
+def loudness(video, win=0.05):
+    """Per-window RMS level in dB (mono, 16 kHz), decoded through ffmpeg."""
+    import array, math
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", video, "-vn", "-ac", "1", "-ar", "16000",
+                        "-f", "s16le", "-"], capture_output=True)
+    pcm = array.array("h")
+    pcm.frombytes(r.stdout[: len(r.stdout) // 2 * 2])
+    n = int(16000 * win)
+    return [20 * math.log10(max(1e-9, math.sqrt(sum(x * x for x in pcm[i:i + n]) / n) / 32768))
+            for i in range(0, len(pcm) - n + 1, n)]
+
+
+def auto_threshold(levels, margin=6.0):
+    """Noise floor (10th percentile of window levels) plus a margin, in dB."""
+    s = sorted(levels)
+    return s[len(s) // 10] + margin
+
+
+def silences_from_levels(levels, threshold, min_len=0.5, win=0.05):
+    """Runs of windows below `threshold` lasting at least `min_len` seconds -> [(start, end)]."""
+    out, run_start = [], None
+    for i, lv in enumerate(levels + [0.0]):  # sentinel closes a trailing run
+        quiet = lv < threshold and i < len(levels)
+        if quiet and run_start is None:
+            run_start = i
+        elif not quiet and run_start is not None:
+            if (i - run_start) * win >= min_len:
+                out.append((round(run_start * win, 3), round(i * win, 3)))
+            run_start = None
     return out
+
+
+def detect_silence(video, noise_db=None, min_len=0.5):
+    """Return [(start, end)] of silent stretches. noise_db=None picks the threshold from the recording's noise floor."""
+    levels = loudness(video)
+    th = auto_threshold(levels) if noise_db is None else noise_db
+    return silences_from_levels(levels, th, min_len)
 
 
 def invert(intervals, total, pad=0.08, min_keep=0.15):
@@ -133,7 +154,7 @@ def main(argv=None):
         s.add_argument("video")
         if name == "silence-cut":
             s.add_argument("out")
-        s.add_argument("--noise", type=float, default=-30.0)
+        s.add_argument("--noise", type=float, default=None, help="threshold in dB (default: noise floor + 6 dB)")
         s.add_argument("--min", type=float, default=0.5)
     s = sub.add_parser("transcribe")
     s.add_argument("video"); s.add_argument("json"); s.add_argument("--model", default="small"); s.add_argument("--lang", default="ar")
