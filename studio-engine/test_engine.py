@@ -34,6 +34,19 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(engine.norm("الفِئَةُ، أَهَّمُ!"), engine.norm("الفئه اهم"))
 
 
+class RepeatGuardTests(unittest.TestCase):
+    def test_collapses_looping_phrase(self):
+        text, hit = engine.collapse_repeats("تضغط " + "ناجحين وضعوا على " * 8 + "خلصنا")
+        self.assertTrue(hit)
+        self.assertEqual(text, "تضغط ناجحين وضعوا على خلصنا")
+
+    def test_collapses_single_word_loop(self):
+        self.assertEqual(engine.collapse_repeats("هذا هذا هذا هذا مهم"), ("هذا مهم", True))
+
+    def test_keeps_normal_repetition(self):
+        self.assertEqual(engine.collapse_repeats("لا لا يا صديقي"), ("لا لا يا صديقي", False))
+
+
 class SilenceTests(unittest.TestCase):
     def test_levels_to_silences_respects_min_length(self):
         lv = [-20] * 10 + [-40] * 4 + [-20] * 5 + [-40] * 12   # 0.2 s gap, then 0.6 s tail

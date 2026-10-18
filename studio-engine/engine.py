@@ -162,6 +162,27 @@ def speech_runs(levels, win=0.05, min_gap=0.4, max_len=28.0, min_len=0.3):
     return out
 
 
+def collapse_repeats(text, max_n=8, min_reps=3):
+    """Collapse a phrase of 1..max_n words repeated `min_reps`+ times in a row (Whisper's loop failure) to one copy.
+
+    Returns (text, collapsed)."""
+    words, collapsed, changed = text.split(), False, True
+    while changed:
+        changed = False
+        for n in range(1, max_n + 1):
+            i = 0
+            while i + n * min_reps <= len(words):
+                unit = words[i:i + n]
+                reps = 1
+                while words[i + reps * n: i + (reps + 1) * n] == unit:
+                    reps += 1
+                if reps >= min_reps:
+                    words[i + n: i + reps * n] = []
+                    collapsed = changed = True
+                i += 1
+    return " ".join(words), collapsed
+
+
 def transcribe_sherpa(video, model_dir, lang="ar"):
     """Whisper through sherpa-onnx (model files from the k2-fsa release), one segment per speech run. No word timestamps."""
     import array, glob, os
@@ -176,14 +197,22 @@ def transcribe_sherpa(video, model_dir, lang="ar"):
                          capture_output=True).stdout
     pcm = array.array("h"); pcm.frombytes(raw[: len(raw) // 2 * 2])
     audio = np.asarray(pcm, dtype=np.float32) / 32768.0
-    segments = []
-    for a, b in speech_runs(loudness(video)):
+    def decode(a, b):
         stream = rec.create_stream()
         stream.accept_waveform(16000, audio[int(a * 16000): int(b * 16000)])
         rec.decode_stream(stream)
-        text = stream.result.text.strip()
+        return stream.result.text.strip()
+
+    levels, segments = loudness(video), []
+    for a, b in speech_runs(levels):
+        text, looped = collapse_repeats(decode(a, b))
+        if looped and b - a > 8.0:
+            # a looping decode usually recovers on shorter pieces: redo the run in <= 8 s chunks
+            pieces = [text_ for lo, hi in speech_runs(levels[int(a / 0.05): int(b / 0.05)], max_len=8.0)
+                      if (text_ := decode(a + lo, a + hi))]
+            text, _ = collapse_repeats(" ".join(pieces))
         if text:
-            segments.append({"start": round(a, 2), "end": round(b, 2), "text": text, "words": []})
+            segments.append({"start": round(a, 2), "end": round(b, 2), "text": text, "words": [], "looped": looped})
     return {"language": lang, "duration": round(len(audio) / 16000, 2), "segments": segments}
 
 
