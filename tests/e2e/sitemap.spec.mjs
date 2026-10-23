@@ -49,4 +49,20 @@ test.describe('Sitemap', () => {
     expect(response.status()).toBe(200);
     expect(await response.json()).toHaveProperty('docs');
   });
+
+  test('ships the pages the search box indexes', async ({ request }) => {
+    const response = await request.get('/learn/search-pages.json');
+    expect(response.status()).toBe(200);
+
+    const pages = await response.json();
+    expect(pages.length).toBeGreaterThan(50);
+    expect(pages[0]).toEqual(
+      expect.objectContaining({
+        path: expect.any(String),
+        title: expect.any(String),
+        body: expect.any(String),
+        siteSection: expect.any(String),
+      })
+    );
+  });
 });

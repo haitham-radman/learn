@@ -136,6 +136,14 @@ describe('search', () => {
     assert.ok(first.score > second.score);
   });
 
+  test('snippets begin and end on whole words', () => {
+    const body = `${'alpha '.repeat(40)}needle ${'omega '.repeat(60)}`;
+    const [{ snippet }] = search(buildIndex([{ ...pages[0], body }]), 'needle');
+    assert.match(snippet.text, /^(alpha|needle)/);
+    assert.match(snippet.text, /(omega|needle)$/);
+    assert.ok(snippet.text.includes('needle'));
+  });
+
   test('snippet ranges point at the matched text', () => {
     const [{ snippet }] = search(index, 'backpressure');
     const [[start, end]] = snippet.ranges;
@@ -157,6 +165,10 @@ describe('search over pages/', () => {
       search(real, 'streams', { limit: 5 }).some(
         r => r.url === '/learn/modules/how-to-use-streams'
       )
+    );
+    assert.deepEqual(
+      real.docs.filter(doc => /\]\(|^#{1,6} /m.test(doc.body)).map(d => d.url),
+      []
     );
     assert.equal(
       search(real, 'mocking section:test-runner')[0].url,

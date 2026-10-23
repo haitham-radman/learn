@@ -46,6 +46,7 @@ export default {
     components: {
       Authors: join(import.meta.dirname, 'components/Authors/index.jsx'),
       Sidebar: join(import.meta.dirname, 'components/Sidebar/index.jsx'),
+      LearnSearch: join(import.meta.dirname, 'components/Search/index.jsx'),
     },
 
     // Imports

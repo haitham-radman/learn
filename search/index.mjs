@@ -25,6 +25,8 @@ const bm25 = (idfValue, freq, length, avgLength) =>
 /**
  * @typedef {Object} Page
  * @property {string} url
+ * @property {string} [path] Site-relative path without extension, as doc-kit names pages.
+ * @property {string} [siteSection] Display name of the section.
  * @property {string} title
  * @property {string} section
  * @property {string} body
@@ -134,10 +136,18 @@ const makeSnippet = (doc, positiveTerms, matches) => {
   if (!ranges.length) {
     return { text: doc.body.slice(0, SNIPPET_AFTER), ranges: [] };
   }
-  const from = Math.max(0, ranges[0][0] - SNIPPET_BEFORE);
-  const to = Math.min(doc.body.length, ranges[0][1] + SNIPPET_AFTER);
+  // Start and end on whole words, except at the edges of the page.
+  const { body } = doc;
+  let from = Math.max(0, ranges[0][0] - SNIPPET_BEFORE);
+  let to = Math.min(body.length, ranges[0][1] + SNIPPET_AFTER);
+  while (from > 0 && from < ranges[0][0] && /\S/.test(body[from - 1])) {
+    from++;
+  }
+  while (to < body.length && to > ranges[0][1] && /\S/.test(body[to])) {
+    to--;
+  }
   return {
-    text: doc.body.slice(from, to),
+    text: body.slice(from, to),
     ranges: ranges
       .filter(([start, end]) => start >= from && end <= to)
       .map(([start, end]) => [start - from, end - from]),
@@ -215,8 +225,10 @@ export const search = (index, query, { limit = 20 } = {}) => {
 
       return {
         url: doc.url,
+        path: doc.path,
         title: doc.title,
         section: doc.section,
+        siteSection: doc.siteSection,
         score,
         fields: FIELDS.filter(field => fields.has(field)),
         snippet: makeSnippet(doc, positive, positiveMatches),

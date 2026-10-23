@@ -85,7 +85,7 @@ test.describe('Theme', () => {
 test.describe('Search', () => {
   test('finds articles and opens a result', async ({ page }) => {
     await page.goto(ARTICLE);
-    await waitForIsland(page, 'SearchBox');
+    await waitForIsland(page, 'LearnSearch');
 
     await page.getByRole('button', { name: /Start typing/ }).click();
 
@@ -99,6 +99,38 @@ test.describe('Search', () => {
     await firstHit.click();
     await expect(page).toHaveURL(/\/learn\/.+/);
     await expect(page).not.toHaveURL(new RegExp(`${ARTICLE}$`));
+  });
+
+  test('understands phrases, exclusions and section filters', async ({
+    page,
+  }) => {
+    await page.goto(ARTICLE);
+    await waitForIsland(page, 'LearnSearch');
+
+    await page.getByRole('button', { name: /Start typing/ }).click();
+    const results = page.getByRole('dialog').last();
+    const input = results.getByPlaceholder('Start typing...');
+    const titles = results.getByRole('heading', { level: 3 });
+
+    // Pages about the event loop that never mention nextTick stay; the ones
+    // that do are dropped.
+    await input.fill('"event loop" -nexttick');
+    await expect(
+      titles.filter({ hasText: "Don't Block the Event Loop" })
+    ).toBeVisible();
+    await expect(titles.filter({ hasText: /nextTick/i })).toHaveCount(0);
+
+    // Excluding a section comes first, so no earlier results can linger.
+    await input.fill('streams -section:modules');
+    await expect(titles.first()).toBeVisible();
+    await expect(titles.filter({ hasText: 'How To Use Streams' })).toHaveCount(
+      0
+    );
+
+    await input.fill('streams section:modules');
+    await expect(
+      titles.filter({ hasText: 'How To Use Streams' })
+    ).toBeVisible();
   });
 });
 
