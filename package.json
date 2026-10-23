@@ -9,6 +9,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "serve": "serve out --listen 3000",
+    "search": "node search/cli.mjs",
+    "test:search": "node --test \"search/*.test.mjs\"",
     "test:e2e": "playwright test",
     "prepare": "husky"
   },
