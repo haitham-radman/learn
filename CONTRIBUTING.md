@@ -60,6 +60,32 @@ npm run serve
 Open <http://localhost:3000/learn> to preview the site. Run `npm run build`
 again after making changes to update the generated output.
 
+## Search
+
+The search box looks through the full text of every page, ranked by relevance
+(BM25, with the title and body scored separately). It understands a small
+query language:
+
+| Query                         | Matches                                 |
+| ----------------------------- | --------------------------------------- |
+| `event loop`                  | pages containing both words             |
+| `"event loop"`                | the words next to each other            |
+| `stream*`                     | words starting with `stream`            |
+| `events -nexttick`            | pages with `events` but not `nexttick`  |
+| `title:promises`              | `promises` in the title (also `body:`)  |
+| `mocking section:test-runner` | pages in the `test-runner` folder       |
+| `any:1 mocha chalk`           | pages with either word, instead of both |
+
+`-` also works on filters (`-title:`, `-section:`). The code lives in
+`search/`; `npm run build` writes `out/learn/search-pages.json`, which the
+browser fetches on the first search. Try a query without a browser, and run
+the unit tests, with:
+
+```bash
+npm run search -- --limit 5 -- '"event loop" -nexttick'
+npm run test:search
+```
+
 ## Running the end-to-end tests
 
 The [Playwright](https://playwright.dev) tests in `tests/e2e/` check that the
