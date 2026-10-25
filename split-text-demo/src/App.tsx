@@ -6,8 +6,8 @@ export default function App() {
       <SplitText
         text="Hello, you!"
         className="text-6xl font-semibold sm:text-8xl"
-        delay={36}
-        duration={0.7}
+        delay={40}
+        duration={0.78}
         ease="power3.out"
         splitType="chars"
         from={{ opacity: 0, y: 40 }}
