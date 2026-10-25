@@ -15,6 +15,8 @@ export default function App() {
         threshold={0.1}
         rootMargin="-100px"
         textAlign="center"
+        loop
+        loopDelay={1}
       />
     </main>
   )

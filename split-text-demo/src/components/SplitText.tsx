@@ -21,6 +21,10 @@ export interface SplitTextProps {
   threshold?: number
   rootMargin?: string
   textAlign?: CSSProperties['textAlign']
+  /** Replay the animation forever once it has started. */
+  loop?: boolean
+  /** Pause between repeats when looping, in seconds. */
+  loopDelay?: number
   tag?: ElementType
   onLetterAnimationComplete?: () => void
 }
@@ -37,6 +41,8 @@ export default function SplitText({
   threshold = 0.1,
   rootMargin = '-100px',
   textAlign = 'center',
+  loop = false,
+  loopDelay = 1,
   tag: Tag = 'p',
   onLetterAnimationComplete,
 }: SplitTextProps) {
@@ -86,8 +92,9 @@ export default function SplitText({
               duration,
               ease,
               stagger: delay / 1000,
+              ...(loop && { repeat: -1, repeatDelay: loopDelay }),
               scrollTrigger: { trigger: el, start, once: true },
-              onComplete: () => {
+              onComplete: loop ? undefined : () => {
                 done.current = true
                 onLetterAnimationComplete?.()
               },
@@ -117,6 +124,8 @@ export default function SplitText({
         JSON.stringify(to),
         threshold,
         rootMargin,
+        loop,
+        loopDelay,
         fontsLoaded,
       ],
       scope: ref,
