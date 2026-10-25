@@ -23,7 +23,7 @@ export interface SplitTextProps {
   textAlign?: CSSProperties['textAlign']
   /** Replay the animation forever once it has started. */
   loop?: boolean
-  /** Pause between repeats when looping, in seconds (0 = back to back). */
+  /** Pause between repeats when looping, in seconds (the hold on the finished text). */
   loopDelay?: number
   tag?: ElementType
   onLetterAnimationComplete?: () => void
@@ -42,7 +42,7 @@ export default function SplitText({
   rootMargin = '-100px',
   textAlign = 'center',
   loop = false,
-  loopDelay = 0,
+  loopDelay = 0.5,
   tag: Tag = 'p',
   onLetterAnimationComplete,
 }: SplitTextProps) {
