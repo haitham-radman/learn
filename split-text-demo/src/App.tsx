@@ -16,7 +16,7 @@ export default function App() {
         rootMargin="-100px"
         textAlign="center"
         loop
-        loopDelay={1}
+        loopDelay={0}
       />
     </main>
   )
